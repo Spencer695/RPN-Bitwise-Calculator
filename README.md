@@ -1,6 +1,6 @@
 # RPN Calculator with Bitwise Operations
 
-[![Linux build and tests](https://github.com/Spencer695/Thao-Tran-s-RPN-Bitwise-Calculator/actions/workflows/linux-ci.yml/badge.svg)](https://github.com/Spencer695/Thao-Tran-s-RPN-Bitwise-Calculator/actions/workflows/linux-ci.yml)
+[![Linux build and tests](https://github.com/Spencer695/RPN-Bitwise-Calculator/actions/workflows/linux-ci.yml/badge.svg)](https://github.com/Spencer695/RPN-Bitwise-Calculator/actions/workflows/linux-ci.yml)
 
 A C++17 coursework project implementing a stack-based, unsigned 16-bit calculator. A CSV runner applies commands and compares the resulting top of stack with expected values. The repository includes portable builds and checked-in regression cases.
 
@@ -50,4 +50,4 @@ The evaluator uses a `std::vector<uint16_t>` stack and returns an optional resul
 
 ## Project origin and scope
 
-This repository began as coursework. Its original name and source filename are retained to preserve provenance. Portfolio improvements add a portable input path, checked-in fixtures, parsing checks, reliable failure statuses, CMake and Linux CI. No embedded hardware or networking is involved in this project.
+This repository began as coursework. The source filename is retained, and the Git history preserves the original coursework. Portfolio improvements add a portable input path, checked-in fixtures, parsing checks, reliable failure statuses, CMake and Linux CI. No embedded hardware or networking is involved in this project.
