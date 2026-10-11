@@ -1,4 +1,5 @@
 #include <bitset>
+#include <limits>
 #include <cmath>
 #include <cstdint>
 #include <fstream>
@@ -12,7 +13,7 @@
 
 using namespace std;
 
-#define INPUT_CSV_FILE "C:/Users/Guine/OneDrive/Desktop/calculator Code/rpn-input.csv"
+
 
 // test controls
 #define MIN_VALUE 0
@@ -76,11 +77,12 @@ shared_ptr<uint16_t> rpn_calc(command const cmd, uint16_t const value /*=0*/) {
     if (!need_n(2))
       return nullptr;
     uint16_t b = st.back();
+    if (b >= width) return nullptr; // reject invalid counts without changing the stack
     st.pop_back();
     uint16_t a = st.back();
     st.pop_back();
-    uint16_t amt = static_cast<uint16_t>(b & 0xF);
-    uint16_t r = static_cast<uint16_t>((a << amt) & 0xFFFF);
+    uint16_t amt = b;
+    uint16_t r = static_cast<uint16_t>((static_cast<uint32_t>(a) << amt) & 0xFFFFu);
     st.push_back(r);
     return make_shared<uint16_t>(r);
   }
@@ -89,10 +91,11 @@ shared_ptr<uint16_t> rpn_calc(command const cmd, uint16_t const value /*=0*/) {
     if (!need_n(2))
       return nullptr;
     uint16_t b = st.back();
+    if (b >= width) return nullptr; // reject invalid counts without changing the stack
     st.pop_back();
     uint16_t a = st.back();
     st.pop_back();
-    uint16_t amt = static_cast<uint16_t>(b & 0xF);
+    uint16_t amt = b;
     uint16_t r = static_cast<uint16_t>(a >> amt);
     st.push_back(r);
     return make_shared<uint16_t>(r);
@@ -162,7 +165,7 @@ void header() {
   cout << left << setw(table_width[5]) << setfill(' ') << "--------" << endl;
 }
 
-void print_row(bool const test_success, command const cmd, int16_t const value,
+void print_row(bool const test_success, command const cmd, int32_t const value,
                shared_ptr<uint16_t> top_of_stack) {
   // print results
   string const pass_fail = test_success ? "PASS" : "FAIL";
@@ -215,20 +218,27 @@ bool parse_csv_line(string const line,
                     int32_t &answer_value) {
   try {
     vector<string> tokens = split(line, ",");
-
-    // get command
-    string cmd = tokens[0];
-    // if command is  valid
-    if (command_map.count(cmd) == 1) {
-      input_cmd = command_map[cmd];
-    } else {
-      cout << "ERROR: Invalid command cmd=" << cmd << endl;
+    if (tokens.size() != 3) {
+      cout << "ERROR: Expected command,value,expected columns" << endl;
       return false;
     }
-
-    // get input and value
-    input_value = stoi(tokens[1].c_str());
-    answer_value = stoi(tokens[2].c_str());
+    if (command_map.count(tokens[0]) != 1) {
+      cout << "ERROR: Invalid command cmd=" << tokens[0] << endl;
+      return false;
+    }
+    input_cmd = command_map.at(tokens[0]);
+    size_t used_value = 0, used_answer = 0;
+    const long long parsed_value = stoll(tokens[1], &used_value);
+    const long long parsed_answer = stoll(tokens[2], &used_answer);
+    if (used_value != tokens[1].size() || used_answer != tokens[2].size() ||
+        parsed_value < 0 || parsed_value > numeric_limits<uint16_t>::max() ||
+        (parsed_answer != VALUE_NULLPTR &&
+         (parsed_answer < 0 || parsed_answer > numeric_limits<uint16_t>::max()))) {
+      cout << "ERROR: Invalid or out-of-range numeric field" << endl;
+      return false;
+    }
+    input_value = static_cast<uint16_t>(parsed_value);
+    answer_value = static_cast<int32_t>(parsed_answer);
   } catch (exception const &e) {
     cout << "ERROR: Unable to parse input csv file, line=" << line << endl;
     cout << "ERROR: exception e=" << e.what() << endl;
@@ -238,13 +248,13 @@ bool parse_csv_line(string const line,
   return true;
 }
 
-bool test() {
+bool test(string const &input_path) {
   // open input file
-  ifstream input_file(INPUT_CSV_FILE);
+  ifstream input_file(input_path);
   if (!input_file.is_open()) {
-    cout << "ERROR: Unable to find and open the file " << INPUT_CSV_FILE
+    cout << "ERROR: Unable to find and open the file " << input_path
          << endl;
-    cout << "       Make sure the path to the file is correct in your code"
+    cout << "       Pass a valid CSV path as the first command-line argument"
          << endl;
     return false;
   }
@@ -256,12 +266,12 @@ bool test() {
   // print header
   header();
 
-  bool success = true;
   bool all_test_pass = true;
   uint16_t pass = 0;
   string line;
   size_t row = 0;
   while (getline(input_file, line)) {
+    if (!line.empty() && line.back() == '\r') line.pop_back();
     // cout << "line " << row << ":" << line << endl;
     if (row > 0) {
       // parse csv line
@@ -313,15 +323,20 @@ bool test() {
   } else {
     cout << "FAILURE ";
   }
-  const size_t num_tests = row - 1;
+  const size_t num_tests = row > 0 ? row - 1 : 0;
   cout << pass << "/" << num_tests << " passed" << endl;
   cout << "-------------------------------------------" << endl;
 
-  return success;
+  return all_test_pass && row > 1;
 }
 
-int main() {
-  if (!test()) {
+int main(int argc, char *argv[]) {
+  if (argc > 2) {
+    cerr << "Usage: rpn [test-cases.csv]" << endl;
+    return 1;
+  }
+  const string input_path = argc == 2 ? argv[1] : "tests/rpn-cases.csv";
+  if (!test(input_path)) {
     return -1;
   }
   return 0;
